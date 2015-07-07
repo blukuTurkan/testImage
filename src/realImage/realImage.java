@@ -200,8 +200,7 @@ public class realImage {
         myGraphic.setColor(Color.black);
 		myGraphic.setFont(new Font("helvetica", Font.PLAIN, 40));
 
-		//myGraphic.drawString(s, dw, dh);
-		
+
 		int rowSize = (imageHeight-140)/4;
 		int rowPos = 50;
 
