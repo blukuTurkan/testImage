@@ -1,22 +1,14 @@
 /**
- * 
+ * @author Antonio Orellana Handal
+ * @version 1.0.1
  */
 package realImage;
 
-
-import java.io.*;
-import java.util.ArrayList;
-
-
-
-// Image EXIF tag processing
-import org.apache.commons.imaging.ImageReadException;
-import org.apache.commons.imaging.ImageWriteException;
-import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
-import org.apache.commons.imaging.formats.tiff.constants.ExifTagConstants;
-import org.apache.commons.imaging.formats.tiff.write.TiffOutputDirectory;
-import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
-
+import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 // Argument Parser
 import net.sourceforge.argparse4j.ArgumentParsers;
@@ -25,12 +17,8 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 import realImage.ImageCreator;
 
-/**
- * @author antoniooh
- *
- */
 public class realImage {
-
+   
 	public static void main(String[] args) {
 		ArgumentParser parser = ArgumentParsers.newArgumentParser("realImage")
 				.defaultHelp(true)
@@ -44,17 +32,14 @@ public class realImage {
 		    .help("Optional. Date to be used as the 'date' component of the EXIF_TAG_DATE_TIME_ORIGINAL.\n"
 		    		+ "Format: [Month:Day:Year] mm:dd:yyyy i.e.: 03:15:1999 March 15th 1999\nDefault: "
 		    		+ "Jan 1st 2015");
-		    //.setDefault("01:01:2015");
 		
 		parser.addArgument("-t", "--time")
 		    .help("Optional. Time to be used as the 'time' component of the EXIF_TAG_DATE_TIME_ORIGINAL.\n"
 		    		+ "Format: [Hours:Minutes:Seconds] hh:mm:ss i.e.: 15:14:13 03:14:13 PM\nDefault:12:00:00");
-		    //.setDefault("12:00:00");
 		
 		parser.addArgument("-bc", "--backcolor")
 	        .help("Optional. Set the background color for the image.")
-	        .choices("black", "blue", "cyan", "darkGray", "gray", "green", "lightGray", "magenta",
-	        		 "orange", "pink", "red", "white", "yellow")
+	        .choices("blue", "cyan", "gray", "green", "orange", "pink", "red", "white", "yellow")
 	        .setDefault("white");
 		    
 	    parser.addArgument("--title")
@@ -68,36 +53,39 @@ public class realImage {
 	    
 	    parser.addArgument("--lat")
 	          .help("Optional. Latitude in decimal format. i.e.: 47.614848")
-	          .type(double.class)
-	          .setDefault(47.614848);
+	          .type(Double.class)
+	          .setDefault(47.6062095);
 	    
 	    parser.addArgument("--lon")
 	    	  .help("Optional. Longitude in decimal format. i.e.: -122.3359058")
-	       	  .type(double.class)
-	    	  .setDefault(-122.3359058);
-	    
-	    /*
-	     * MISSING ARGUMENTS
-	     * -p --place "name of place" i.e.: "Seattle Center"
-	     * -lat --latitude 
-	     * -lon --longitude
-	     * */
-	    
+	       	  .type(Double.class)
+	    	  .setDefault(-122.3320708);
+	    	    
+	    parser.addArgument("-p", "--place")
+	          .help("Optional. Set the 'human friendly name' of the place to be used as location.");
+	          	    
+	    parser.addArgument("--travel")
+	          .help("Optional. Create the specified number of pictures as a travel. "
+	          		+ "Date is assigned as a randomly from the base Date "
+	          		+ "and Time set (Max offset is a week). Location is randomly assigned"
+	          		+ " using a 5Km radius from the Lat-Long position or place specificied.")
+	          .type(Integer.class)
+	          .setDefault(1);
 	    
 	    // Start processing command line arguments
 		Namespace ns = null;
         try 
         {
-            ns = parser.parseArgs(args);
+      	    ns = parser.parseArgs(args);
         } 
         catch (ArgumentParserException e) 
         {
-        	System.out.println("[Error] - Error parsing command line arguments.");
-            parser.handleError(e);
+        	System.out.println(e.getMessage());
+        	parser.handleError(e);
             System.exit(1);
         }
 				
-        // Process Image Size CML Arg 
+        // Process Image Size command line argument
         String size = ns.getString("size");
         
         // Default Image Size 800 x 600
@@ -118,7 +106,7 @@ public class realImage {
 			}
 		}
 		
-		 // Process Date CML Arg
+		// Process Date command line argument
         String date = ns.getString("date");
         if(date != null)
         {
@@ -130,12 +118,9 @@ public class realImage {
         	{
         		date = dateData[2] + ":" + dateData[0] + ":" + dateData[1];
         	}
-        	else
-        	{
-        		date = "2015:01:01";
-        	}
         }
-        // Process Time CML Arg
+        
+        // Process Time command line argument
         String time = ns.getString("time");
         if (time != null)
         {
@@ -147,47 +132,84 @@ public class realImage {
         	{
         		time = timeData[0] + ":" + timeData[1] + ":" + timeData[2];
         	}
-        	else
-        	{
-        		time = "12:00:00";
-        	}
-
+        }
+        
+        // Get today date
+        String dateTimeOriginal = "";
+        if (date == null  || time == null)
+        {
+        	Date now = new Date();
+        	Timestamp nowTimeStamp = new Timestamp(now.getTime());
+        	dateTimeOriginal = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss").format(nowTimeStamp);
+        }
+        else
+        {
+	        // Date Time Original - String to be embedded as part of the EXIF metadata
+	        dateTimeOriginal = String.format("%s %s", date, time);
         }
 
-        String dateTimeOriginal = String.format("%s %s", date, time);
-
-        // Process Title CML Arg
+        // Process Title command line argument
         String title = ns.getString("title");
-
-
-        // Process Latitude CML Arg
+        
+        // Process Latitude command line argument
         double lat = ns.getDouble("lat");
                 
-        // Process Longitude CML Arg
+        // Process Longitude command line argument
         double lon = ns.getDouble("lon");
         
-        GeoMath geocalculator = new GeoMath(lat, lon);
+        // Process Place command line argument
+        String place = ns.getString("place");
+        GeoData placeData = null;
+        if(place != null)
+        {   
+        	// Place Name resolution has priority over coordinates
+        	placeData = Geocoding.ResolvePlace(place);
+        }
+        else 
+        {
+        	placeData = Geocoding.ResolveCoordinates(lat, lon);
+        	place = "";
+        }
         
-		String geo   = String.format("Lat = %f Long = %f", lat, lon);
-		String place = "Place Place Holder";
+        if (placeData != null)
+    	{
+        	// Place resolution worked (either by place or coordinates)
+    	    place = placeData.place;
+    	    lat = placeData.lat;
+    	    lon = placeData.lng;
+        }
+        else
+        {
+        	// We need place data to add EXIF location
+        	placeData = new GeoData(lat, lon, "");
+        }
+
+        // Used for --travel option
+        GeoMath geocalculator = new GeoMath(lat, lon);
+
+		ImageData imageDescription = new ImageData();
+		imageDescription.SetTitle(title);
+		imageDescription.SetHeight(imageHeight);
+		imageDescription.SetWidth(imageWidth);
+		imageDescription.SetDateTime(dateTimeOriginal);
+		imageDescription.SetLatitude(lat);
+		imageDescription.SetLongitude(lon);
+		imageDescription.SetPlace(place);
 		
-		// Create an Array to iterate through text to be embedded on test image
-		ArrayList<String> dataOnImage = new ArrayList<String>();
-		dataOnImage.add(title);
-		dataOnImage.add(String.format("Width = %s Height = %s", imageWidth, imageHeight));
-		dataOnImage.add(dateTimeOriginal);
-		dataOnImage.add(geo);
-		dataOnImage.add(place);
 		
-		// Process Color CML Arg
+		// Process Color command line argument
 		String color = ns.getString("backcolor");
 
-		// Process Number of Images CML Arg
+		// Process Number of Images command line argument
 		int numberOfImages = ns.getInt("number");
 	    numberOfImages = numberOfImages > 0 ? numberOfImages : 1;
-	    boolean appendCtr = numberOfImages > 1 ? true : false;
 	    int ctr = 1;
 				
+	    int travel = ns.getInt("travel");
+	    boolean isTravel = travel > 1 ? true : false;
+	    
+	    numberOfImages = travel;
+	    boolean appendCtr = numberOfImages > 1 ? true : false;
 	    
 		// Create Test Images
 		while(numberOfImages > 0)
@@ -195,59 +217,60 @@ public class realImage {
 			String fileName = title;
 			if (appendCtr)
 			{
+				// Set Image Title
 				fileName = title.concat(" " + ctr);
-				dataOnImage.set(0, fileName);
-				ctr++;
+				imageDescription.SetTitle(fileName);
 				
-				geocalculator.CalculateRandomDestinationPoint();
-				lat = geocalculator.lat2;
-				lon = geocalculator.lon2;
-				dataOnImage.set(3, String.format("Lat = %f Long = %f", lat, lon));
+								
+				if (isTravel && numberOfImages < travel) 
+				{
+				    geocalculator.CalculateRandomDestinationPoint();
+				    lat = geocalculator.GetLatitude();
+				    lon = geocalculator.GetLongitude();
+				    
+				    placeData = Geocoding.ResolveCoordinates(lat, lon);
+				    
+				    if (placeData != null)
+				    {
+			    	    place = placeData.place;
+			    	    lat = placeData.lat;
+			    	    lon = placeData.lng;
+				    }
+			        else
+			        {
+			        	// We need place data to add EXIF location
+			        	placeData = new GeoData(lat, lon, "");
+			        }
+				    
+				    // Calculate Random Date. Offset is 1 week from base date.
+				    DateFormat dateFormat = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss");
+				    String newDateTimeOriginal = "";
+				    try {
+						Date baseDate = dateFormat.parse(dateTimeOriginal);
+						long MILLISECONDS_PER_WEEK = 604800000;
+						long randomDateMsec = baseDate.getTime() + (long)(Math.random()*MILLISECONDS_PER_WEEK);
+						Timestamp newTimestamp = new Timestamp(randomDateMsec);
+						newDateTimeOriginal = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss").format(newTimestamp);
+					} catch (ParseException e) {
+						newDateTimeOriginal = "1970:01:01 12:00:00";						
+					}
+
+				    imageDescription.SetTitle(fileName);
+				    imageDescription.SetDateTime(newDateTimeOriginal);
+				    imageDescription.SetLatitude(placeData.lat);
+				    imageDescription.SetLongitude(placeData.lng);
+				    imageDescription.SetPlace(placeData.place);
+				}
 			}
-			
-			
-			
+
 			ImageCreator testImage = new ImageCreator(imageWidth, imageHeight, color);
 			testImage.CreateJPEGImage();
-			testImage.EmbedTextToImage(dataOnImage);
+			testImage.EmbedTextToImage(imageDescription.GetData());
+			testImage.SaveImageJPEGToFile(fileName, placeData);
 			
+			ctr++;
 			numberOfImages--;
-			
-			try {
-			    //File outputfile = new File("saved.jpg");
-			    //ImageIO.write(im, "jpg", outputfile);
-		
-				String fullFileName = title.concat(".jpg");
-				testImage.SaveImageJPEGToFile(fullFileName);
-				
-	    		TiffOutputSet outputSet = new TiffOutputSet();
-				TiffOutputDirectory exifDirectory = outputSet.getOrCreateExifDirectory();
-				exifDirectory.add(ExifTagConstants.EXIF_TAG_DATE_TIME_ORIGINAL, dateTimeOriginal);
-	            exifDirectory.add(ExifTagConstants.EXIF_TAG_PROCESSING_SOFTWARE, "Test Image Creator");
-				outputSet.setGPSInDegrees(lon, lat);
-				
-				String outPutFileName = fileName.concat("_data.jpg");
-				
-				File input = new File(outPutFileName);
-				File outputfile = new File(fullFileName);
-				OutputStream os = new FileOutputStream(input);
-				os = new BufferedOutputStream(os);
-				new ExifRewriter().updateExifMetadataLossless(outputfile, os, outputSet);
-				
-			} catch (ImageWriteException e) {
-				// TODO Auto-generated catch block
-				System.out.println("Image Write Error");
-				e.printStackTrace();
-			}  catch (IOException e) {
-			    System.out.println("oops... something went wrong");
-			    e.printStackTrace();
-			} catch (ImageReadException e) {
-				// TODO Auto-generated catch block
-				System.out.println("Image Read Error");
-				e.printStackTrace();
-			}
 		}
-
 	}
 
 }

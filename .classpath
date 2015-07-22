@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="lib" path="C:/Users/user/workspace/imaging-snapshot/commons-imaging-trunk/target/commons-imaging-1.0-SNAPSHOT.jar"/>
-	<classpathentry kind="lib" path="C:/Users/user/workspace/realImage/libraries/argparse4j-0.6.0.jar"/>
+	<classpathentry kind="lib" path="C:/Users/user/workspace/realImage/libraries/json-20141113.jar"/>
+	<classpathentry kind="lib" path="C:/Users/user/workspace/realImage/libraries/argparse4j-0.5.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

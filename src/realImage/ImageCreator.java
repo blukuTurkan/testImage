@@ -5,12 +5,22 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 
 import javax.imageio.ImageIO;
+
+import org.apache.commons.imaging.ImageReadException;
+import org.apache.commons.imaging.ImageWriteException;
+import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
+import org.apache.commons.imaging.formats.tiff.constants.ExifTagConstants;
+import org.apache.commons.imaging.formats.tiff.write.TiffOutputDirectory;
+import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 
 public class ImageCreator {
 
@@ -21,6 +31,7 @@ public class ImageCreator {
 	private String color;
 	private int fontSize;
 	private int margin;
+	private String dateTimeOriginal;
 	
 	public ImageCreator(int w, int h, String background)
 	{
@@ -81,13 +92,13 @@ public class ImageCreator {
 	public void EmbedTextToImage(ArrayList<String> textItems)
 	{
 		int rows = textItems.size();
-		
+		dateTimeOriginal = textItems.get(2);
 		// Calculate the Height of the whole lines of text to embed
 		// Adjust margin and font size as required to fit text
-		while( CalculateEmbeddedTextHeight(rows) >= this.height )
+		while( CalculateEmbeddedTextHeight(rows) >= this.height-margin )
 		{
-			this.margin   /= 2;
-			this.fontSize -= 10;
+			this.margin   -= 10;
+			this.fontSize -= 3;
 			
 			if (this.margin < this.fontSize)
 			{
@@ -107,7 +118,7 @@ public class ImageCreator {
 			// Check if the text fits (width). Modify Font Size to make it fit.
 			while(!DoesTextFits(item))
 			{
-				tmpFontSize = (tmpFontSize-10 > 10) ? tmpFontSize-10 : 5;
+				tmpFontSize = (tmpFontSize-2 > 20) ? tmpFontSize-2 : 20 ;
 				this.graphic.setFont(new Font("helvetica", Font.PLAIN, tmpFontSize));
 			}
 			
@@ -117,18 +128,50 @@ public class ImageCreator {
 		}
 	}
 	
-	public void SaveImageJPEGToFile(String fileName)
+	public void SaveImageJPEGToFile(String fileName, GeoData exif)
 	{
-		if (!fileName.contains(".jpg"))
+		try 
 		{
-			fileName = fileName.concat(".jpg");
-		}
-		
-		try {
-		    File outputfile = new File(fileName);
+		    File outputfile = new File("template.jpg");
 		    ImageIO.write(this.image, "jpg", outputfile);
-		} catch (IOException e) {
-		    System.out.println("Could not save image " + fileName + " to File.");
-		}
+
+			
+			TiffOutputSet outputSet = new TiffOutputSet();
+			TiffOutputDirectory exifDirectory = outputSet.getOrCreateExifDirectory();
+			exifDirectory.add(ExifTagConstants.EXIF_TAG_DATE_TIME_ORIGINAL, dateTimeOriginal);
+	        exifDirectory.add(ExifTagConstants.EXIF_TAG_PROCESSING_SOFTWARE, "Test Image Creator");
+			outputSet.setGPSInDegrees(exif.lng, exif.lat);
+			
+			if (!fileName.contains(".jpg"))
+			{
+				fileName = fileName.concat(".jpg");
+			}
+			
+			String outPutFileName = fileName.replace(" ","_");
+			
+			File input = new File(outPutFileName);
+			
+			OutputStream os = new FileOutputStream(input);
+			os = new BufferedOutputStream(os);
+			new ExifRewriter().updateExifMetadataLossless(outputfile, os, outputSet);
+			
+			System.out.println("Image <" + outPutFileName  +"> created.");
+		} 
+		catch (IOException e) 
+		{
+			    System.out.println("Could not save image " + fileName + " to File.");	
+		} 
+		catch (ImageWriteException e) 
+		{
+			// TODO Auto-generated catch block
+			System.out.println("Image Write Error");
+			e.printStackTrace();
+		}  
+		catch (ImageReadException e) 
+		{
+			// TODO Auto-generated catch block
+			System.out.println("Image Read Error");
+			e.printStackTrace();
+	    }
 	}
 }
